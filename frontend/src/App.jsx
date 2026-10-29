@@ -202,6 +202,9 @@ export default function App() {
     setFindings([]);
     setCostReport(null);
     setCostError("");
+    setScanChecks({});
+    setSyncMessage("");
+    setView("overview");
     setError("");
   }, []);
 
@@ -223,7 +226,8 @@ export default function App() {
       setConnections(connectionList);
       setAlerts(alertList);
       setFindings(findingList);
-      const awsConnection = connectionList.find((connection) => connection.provider === "aws");
+      const awsConnection = connectionList.find((connection) => connection.provider === "aws" && !connection.simulated)
+        || connectionList.find((connection) => connection.provider === "aws");
       if (awsConnection) {
         try {
           setCostReport(await apiRequest(`/connections/${awsConnection.id}/costs`, { token: activeToken }));
@@ -270,8 +274,10 @@ export default function App() {
   });
   const liveAWS = connections.find((connection) => connection.provider === "aws" && !connection.simulated);
 
-  async function refreshInventory() {
-    const connection = connections.find((item) => item.provider === "aws");
+  async function refreshInventory(connectionId) {
+    const connection = connections.find((item) => item.id === connectionId)
+      || liveAWS
+      || connections.find((item) => item.provider === "aws");
     if (!connection) return;
     setSyncMessage("");
     try {
@@ -285,8 +291,10 @@ export default function App() {
     }
   }
 
-  async function runSecurityScan() {
-    const connection = connections.find((item) => item.provider === "aws");
+  async function runSecurityScan(connectionId) {
+    const connection = connections.find((item) => item.id === connectionId)
+      || liveAWS
+      || connections.find((item) => item.provider === "aws");
     if (!connection) return;
     setScanning(true);
     setError("");
@@ -381,7 +389,7 @@ export default function App() {
                       <button className="panel-footer-link" onClick={() => navigate("alerts")}>Go to alert center <ArrowRight size={15} /></button>
                     </article>
                   </section>
-                  <section className="insight-strip"><span className="insight-icon"><Shield size={17} /></span><div><strong>Security snapshot</strong><span>{summary?.open_findings ?? 0} simulated findings across your resources. Review each item before connecting live infrastructure.</span></div><button onClick={() => navigate("resources")}>Explore resources <ArrowRight size={15} /></button></section>
+                  <section className="insight-strip"><span className="insight-icon"><Shield size={17} /></span><div><strong>Security snapshot</strong><span>{summary?.open_findings ?? 0} open findings across your resources, including clearly labeled demo findings.</span></div><button onClick={() => navigate("resources")}>Explore resources <ArrowRight size={15} /></button></section>
                 </>
               )}
               {view === "resources" && (
@@ -426,7 +434,7 @@ export default function App() {
                 <>
                   <section className="page-heading"><div><div className="section-kicker">CLOUD PROVIDERS</div><h1>Connections</h1><p>Manage cloud account records for your workspace.</p></div><button className="primary-button" onClick={() => setShowConnectionDialog(true)}><Plus size={17} /> Add connection</button></section>
                   <div className="demo-banner compact-banner"><span className="demo-banner-icon"><Shield size={16} /></span><div><strong>Connections never store AWS credentials.</strong><span>Live AWS access uses the backend standard credential chain; other providers remain Demo Mode.</span></div><span className="live-tag"><span /> SERVER-SIDE</span></div>
-                  <section className="connection-grid">{connections.map((connection) => <article className="panel connection-card" key={connection.id}><div className="connection-card-top"><span className="connection-icon"><Cloud size={20} /></span><span className={`connection-status ${connection.status === "connected" ? "connected" : ""}`}><i />{connection.status}</span></div><h2>{connection.display_name}</h2><p>{formatProvider(connection.provider)}{connection.region ? ` · ${connection.region}` : ""}</p><div className="connection-meta"><span>Account ID</span><strong>{connection.account_identifier || "Not specified"}</strong></div><div className="connection-meta"><span>Data source</span><strong>{connection.simulated ? "Demo Mode" : "Live AWS"}</strong></div><div className="connection-meta"><span>Last successful sync</span><strong>{formatTimestamp(connection.last_synced_at)}</strong></div>{!connection.simulated && <button className="secondary-button connection-refresh" onClick={refreshInventory}><RefreshCw size={14} /> Refresh resources</button>}<div className="connection-footer"><span>{connection.simulated ? "Simulated data" : "Read-only AWS access"}</span><Check size={16} /></div></article>)}<button className="add-connection-card" onClick={() => setShowConnectionDialog(true)}><span><Plus size={20} /></span><strong>Add another account</strong><small>Connect AWS or create a demo record</small></button></section>
+                  <section className="connection-grid">{connections.map((connection) => <article className="panel connection-card" key={connection.id}><div className="connection-card-top"><span className="connection-icon"><Cloud size={20} /></span><span className={`connection-status ${connection.status === "connected" ? "connected" : ""}`}><i />{connection.status}</span></div><h2>{connection.display_name}</h2><p>{formatProvider(connection.provider)}{connection.region ? ` · ${connection.region}` : ""}</p><div className="connection-meta"><span>Account ID</span><strong>{connection.account_identifier || "Not specified"}</strong></div><div className="connection-meta"><span>Data source</span><strong>{connection.simulated ? "Demo Mode" : "Live AWS"}</strong></div><div className="connection-meta"><span>Last successful sync</span><strong>{formatTimestamp(connection.last_synced_at)}</strong></div>{!connection.simulated && <button className="secondary-button connection-refresh" onClick={() => refreshInventory(connection.id)}><RefreshCw size={14} /> Refresh resources</button>}<div className="connection-footer"><span>{connection.simulated ? "Simulated data" : "Read-only AWS access"}</span><Check size={16} /></div></article>)}<button className="add-connection-card" onClick={() => setShowConnectionDialog(true)}><span><Plus size={20} /></span><strong>Add another account</strong><small>Connect AWS or create a demo record</small></button></section>
                 </>
               )}
               {view === "alerts" && (

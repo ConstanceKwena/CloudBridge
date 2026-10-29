@@ -11,15 +11,16 @@ const demoResources = [
   { id: 2, provider: "aws", name: "assets-bucket-demo", resource_type: "storage", region: "us-east-1", status: "active", simulated: true, metrics: {} },
 ];
 
-function mockDashboard() {
+function mockDashboard(connections = [{ id: 1, provider: "aws", display_name: "Demo", region: "us-east-1", status: "connected", simulated: true }]) {
   apiRequest.mockImplementation((path) => {
     if (path === "/auth/me") return Promise.resolve({ full_name: "Test User", email: "test@example.com" });
     if (path === "/dashboard/summary") return Promise.resolve({ total_resources: 2, active_connections: 1, open_findings: 0, unread_alerts: 0 });
     if (path === "/resources") return Promise.resolve(demoResources);
-    if (path === "/connections") return Promise.resolve([{ id: 1, provider: "aws", display_name: "Demo", region: "us-east-1", status: "connected", simulated: true }]);
+    if (path === "/connections") return Promise.resolve(connections);
     if (path === "/alerts") return Promise.resolve([]);
     if (path === "/security/findings") return Promise.resolve([]);
-    if (path === "/connections/1/costs") return Promise.resolve({ total: 162, currency: "USD", estimated: true, simulated: true, period_start: "2026-10-01", period_end: "2026-10-27", services: [] });
+    if (path.endsWith("/costs")) return Promise.resolve({ total: 162, currency: "USD", estimated: true, simulated: path.includes("/1/"), period_start: "2026-10-01", period_end: "2026-10-27", services: [] });
+    if (path.endsWith("/sync")) return Promise.resolve({ simulated: false, resource_count: 1, synchronized_at: "2026-10-29T12:00:00Z", warnings: [] });
     return Promise.resolve({});
   });
 }
@@ -60,5 +61,28 @@ describe("CloudBridge dashboard", () => {
     ));
     const request = apiRequest.mock.calls.find(([path]) => path === "/connections/aws")[1];
     expect(request.body).not.toMatch(/access_key|secret_key|session_token/i);
+  });
+
+  it("uses the selected live AWS connection instead of a demo connection", async () => {
+    mockDashboard([
+      { id: 1, provider: "aws", display_name: "Demo", region: "us-east-1", status: "connected", simulated: true },
+      { id: 2, provider: "aws", display_name: "Live AWS", region: "us-west-2", status: "connected", simulated: false },
+    ]);
+
+    render(<App />);
+    await screen.findByText("Good to have you here, Test.");
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(
+      "/connections/2/costs",
+      expect.objectContaining({ token: "test-token" }),
+    ));
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("button", { name: "Connections" }));
+    const liveConnection = screen.getByRole("heading", { name: "Live AWS" }).closest("article");
+    fireEvent.click(within(liveConnection).getByRole("button", { name: "Refresh resources" }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(
+      "/connections/2/sync",
+      expect.objectContaining({ method: "POST", token: "test-token" }),
+    ));
   });
 });

@@ -6,6 +6,18 @@
 
 CloudBridge is a cloud management and security dashboard for connecting infrastructure visibility, operational alerts, and security findings in one place. Demo Mode is available without cloud credentials; a live AWS connection can use the backend's standard AWS credential provider chain.
 
+## Problem statement
+
+Small teams often need to switch between separate cloud consoles to review inventory, operational signals, configuration risks, and costs. CloudBridge brings those read-only views together and clearly distinguishes live AWS data from simulated demo data.
+
+## Verified features
+
+- Registration, login, signed bearer tokens, and authenticated user-scoped API access.
+- A responsive dashboard with resource inventory, filters, monitoring views, security findings, cost reports, connections, and alert lifecycle actions.
+- Repeatable Demo Mode data for resources, findings, estimated costs, and alerts without AWS credentials or provider calls.
+- Read-only AWS identity validation through STS, EC2/S3/RDS discovery, available CloudWatch metrics, security configuration checks, and Cost Explorer reporting.
+- Database persistence managed with SQLAlchemy and Alembic; Docker Compose configuration for PostgreSQL, the API, and the static frontend.
+
 ## Architecture
 
 - `backend/`: FastAPI application, SQLAlchemy persistence, Alembic migrations, and pytest suite.
@@ -49,6 +61,16 @@ python -m uvicorn app.main:app --reload --app-dir backend
 The frontend uses `/api` as its API base and Vite proxies it to the backend in development.
 
 Run backend tests from `backend\` with `python -m pytest tests`. Run frontend tests from `frontend\` with `npm test`, and create a production build with `npm run build`.
+
+## Docker
+
+Set `POSTGRES_PASSWORD` to a unique database password and `JWT_SECRET_KEY` to a unique random value of at least 32 characters in the root `.env` file. Do not use the example development secret in a deployed environment. Then run from the repository root:
+
+```powershell
+docker compose up --build
+```
+
+The frontend is served at `http://localhost:8080`; Compose starts PostgreSQL, runs Alembic migrations in the backend container, and waits for service health checks. Stop the stack with `Ctrl+C` or `docker compose down`. Docker is not required for local SQLite development.
 
 ## Authentication and data
 
@@ -107,10 +129,23 @@ The scanner reports only detected configuration issues; it does not certify an a
 
 Live connections currently use the backend execution identity for each authenticated CloudBridge user. This is appropriate for a single-tenant deployment or trusted demo environment; before exposing a shared multi-tenant service, implement tenant-specific role assumption and authorization boundaries so users cannot independently invoke a shared AWS identity.
 
+CloudBridge stores access tokens in browser local storage. Use HTTPS in deployment, keep dependencies and secrets managed securely, and protect the browser session against cross-site scripting. Live AWS connectivity should only be enabled with a dedicated least-privilege read-only role. The app does not create, modify, or delete cloud resources.
+
+Azure and Google Cloud connection records are simulated only; there are no live integrations for those providers. There is no separate account-settings page, account deletion workflow, alert delivery service, or tenant-specific AWS role assumption yet. These are known product limitations, not implemented features.
+
 ## Demo Mode
 
 Registration creates clearly labeled simulated AWS resources, findings, and alerts. Demo cost reports are derived from sample resource estimates and are marked estimated and simulated. Demo Mode makes no AWS calls; live API responses are never filled with mock fallbacks.
 
-## Day 1 foundation
+## Troubleshooting
 
-Included: health check, persistence models and migrations, registration/login/profile, user-scoped connection/resource/alert APIs, a responsive dashboard, and automated tests. Real AWS access, scanning, cost analysis, intelligent alert delivery, and deployment automation are planned for later days.
+- **API does not start:** confirm Python dependencies are installed and `DATABASE_URL` is reachable. The local default is SQLite; PostgreSQL deployments must have the database available.
+- **Database schema is outdated:** run `python -m alembic -c backend\alembic.ini upgrade head` from the repository root before starting the API.
+- **Frontend cannot reach the API:** start the backend on port `8000`; Vite proxies `/api`, `/health`, and `/docs` to that service.
+- **Live AWS validation fails:** configure credentials for the backend's standard boto3 provider chain, confirm the requested region, and verify `sts:GetCallerIdentity`. CloudBridge intentionally does not collect AWS credentials in the UI.
+- **Some AWS results are unavailable:** confirm the relevant read-only permissions. CloudBridge reports incomplete security checks and unavailable metrics rather than treating missing access or data as a secure/zero result.
+- **Cost report is unavailable:** enable Cost Explorer, allow time for billing data to populate, and grant `ce:GetCostAndUsage`.
+
+## Current implementation status
+
+The project includes the backend, frontend, Demo Mode, read-only AWS integrations described above, Docker configuration, and automated tests. AWS behavior is covered with mocked/stubbed tests; live AWS access and deployment to a cloud environment were not exercised as part of local verification. Use Demo Mode for presentations that must not depend on external credentials or incur cloud charges.

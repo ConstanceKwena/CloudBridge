@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -25,6 +25,8 @@ class User(TimestampMixin, Base):
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    cpu_alert_threshold: Mapped[float] = mapped_column(Float, default=80.0, nullable=False)
+    memory_alert_threshold: Mapped[float] = mapped_column(Float, default=85.0, nullable=False)
 
     cloud_connections: Mapped[list["CloudConnection"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -49,6 +51,9 @@ class CloudConnection(TimestampMixin, Base):
     account_identifier: Mapped[str | None] = mapped_column(String(128))
     simulated: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_successful_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scan_checks: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
 
     user: Mapped[User] = relationship(back_populates="cloud_connections")
     resources: Mapped[list["CloudResource"]] = relationship(back_populates="connection")
@@ -123,5 +128,7 @@ class Alert(TimestampMixin, Base):
     deduplication_key: Mapped[str | None] = mapped_column(String(200), index=True)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    affected_resource: Mapped[str] = mapped_column(String(180), default="Unknown resource", nullable=False)
+    recommendation: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     user: Mapped[User] = relationship(back_populates="alerts")

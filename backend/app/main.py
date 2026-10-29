@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base, engine
 from app import models
@@ -30,4 +32,9 @@ app.include_router(cloud.router)
 
 @app.get("/health", tags=["health"])
 def health_check() -> dict[str, str]:
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        raise HTTPException(status_code=503, detail="Database is unavailable") from None
     return {"status": "ok", "service": "CloudBridge"}

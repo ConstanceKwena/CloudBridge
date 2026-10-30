@@ -156,6 +156,11 @@ def test_demo_costs_findings_and_alert_lifecycle_are_explicit_and_user_scoped(cl
     assert findings.status_code == 200
     assert len(findings.json()) == 2
     assert all(finding["simulated"] for finding in findings.json())
+    assert {finding["affected_resource"] for finding in findings.json()} == {
+        "assets-bucket-demo",
+        "analytics-db-demo",
+    }
+    assert all(finding["recommendation"] for finding in findings.json())
 
     alerts = client.get("/api/alerts", headers=owner_headers).json()
     alert_id = alerts[0]["id"]

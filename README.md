@@ -4,11 +4,20 @@
 
 **WTC-JLCNQUHE**
 
+**GitHub repository:** [ConstanceKwena/CloudBridge](https://github.com/ConstanceKwena/CloudBridge)
+
 CloudBridge is a cloud management and security dashboard for connecting infrastructure visibility, operational alerts, and security findings in one place. Demo Mode is available without cloud credentials; a live AWS connection can use the backend's standard AWS credential provider chain.
 
 ## Problem statement
 
 Small teams often need to switch between separate cloud consoles to review inventory, operational signals, configuration risks, and costs. CloudBridge brings those read-only views together and clearly distinguishes live AWS data from simulated demo data.
+
+## Technology stack
+
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, SQLite/PostgreSQL, boto3, and PyJWT.
+- **Frontend:** React, Vite, Tailwind CSS, and Lucide icons.
+- **Testing:** pytest and Vitest with React Testing Library.
+- **Deployment:** Docker Compose, PostgreSQL, and Nginx.
 
 ## Verified features
 

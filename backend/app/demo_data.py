@@ -61,16 +61,26 @@ def add_demo_data(db: Session, user: User) -> None:
             SecurityFinding(
                 user=user,
                 resource=resources[1],
+                affected_resource=resources[1].name,
                 title="Storage access review recommended",
                 description="Simulated finding: review public access settings for the demo storage bucket.",
+                recommendation=(
+                    "Review the bucket's public access block, policy, and ACL settings "
+                    "before connecting live infrastructure."
+                ),
                 severity="high",
                 simulated=True,
             ),
             SecurityFinding(
                 user=user,
                 resource=resources[2],
+                affected_resource=resources[2].name,
                 title="Database maintenance window",
                 description="Simulated finding: a maintenance window is approaching for the demo database.",
+                recommendation=(
+                    "Review the planned database maintenance window and confirm it fits "
+                    "the service's availability requirements."
+                ),
                 severity="medium",
                 simulated=True,
             ),
